@@ -14,7 +14,7 @@ import Link from 'next/link';
 import {
   Film, Sparkles, Flame, Compass,
   BarChart3, Brain, Clapperboard,
-  Award, ArrowRight,
+  Award,
 } from 'lucide-react';
 
 export default function DashboardPage() {
