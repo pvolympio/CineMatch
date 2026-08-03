@@ -1,23 +1,51 @@
 // src/routes/movies.js
 // Movie-related endpoints: search, details, popular, trending
 const express = require('express');
-const { query } = require('../config/database');
+const { query: expressQuery, param, validationResult } = require('express-validator');
+const { query: dbQuery } = require('../config/database');
 const tmdbService = require('../services/tmdbService');
 const { optionalAuthenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
 // =============================================
-// GET /api/movies/search?q=title
-// Search movies by title
+// GET /api/movies/search?q=title&year=2020&director=Nolan
+// Search movies by title with advanced filters
 // =============================================
-router.get('/search', async (req, res) => {
+router.get('/search', [
+  expressQuery('q').trim().isLength({ min: 2 }).withMessage('Query muito curta'),
+  expressQuery('page').optional().isInt({ min: 1 }).withMessage('Página inválida'),
+  expressQuery('year').optional().isInt({ min: 1900, max: 2100 }).withMessage('Ano inválido'),
+  expressQuery('genre').optional().isInt({ min: 1 }).withMessage('Gênero inválido'),
+], async (req, res) => {
   try {
-    const { q, page = 1 } = req.query;
-    if (!q || q.trim().length < 2) {
-      return res.status(400).json({ success: false, error: 'Query muito curta' });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
 
+    const { q, page = 1, year, genre } = req.query;
+
+    // If advanced filters are provided, use discover endpoint
+    if (year || genre) {
+      const results = await tmdbService.discoverMovies({
+        page: parseInt(page),
+        with_genres: genre,
+        year: year,
+        sort_by: 'popularity.desc',
+      });
+
+      // Filter by title if query provided
+      if (q) {
+        results.results = results.results.filter(movie =>
+          movie.title.toLowerCase().includes(q.toLowerCase())
+        );
+      }
+
+      return res.json({ success: true, ...results });
+    }
+
+    // Standard search
     const results = await tmdbService.searchMovies(q.trim(), parseInt(page));
     res.json({ success: true, ...results });
   } catch (error) {
@@ -87,7 +115,7 @@ router.get('/:id', optionalAuthenticate, async (req, res) => {
     }
 
     // Try cache first
-    const { rows: cached } = await query(
+    const { rows: cached } = await dbQuery(
       'SELECT * FROM movie_cache WHERE tmdb_id = $1',
       [movieId]
     );
@@ -106,7 +134,7 @@ router.get('/:id', optionalAuthenticate, async (req, res) => {
     movieDetails = await tmdbService.getMovieDetails(movieId);
 
     // Cache the basic info for faster lookups
-    await query(
+    await dbQuery(
       `INSERT INTO movie_cache 
        (tmdb_id, title, original_title, overview, poster_path, backdrop_path,
         release_date, vote_average, vote_count, popularity, genre_ids, runtime, director, cached_at)
@@ -136,7 +164,7 @@ router.get('/:id', optionalAuthenticate, async (req, res) => {
     // If user is authenticated, attach their rating
     let userRating = null;
     if (req.user) {
-      const { rows: ratingRows } = await query(
+      const { rows: ratingRows } = await dbQuery(
         'SELECT rating, watched, watchlist FROM user_ratings WHERE user_id = $1 AND tmdb_movie_id = $2',
         [req.user.id, movieId]
       );

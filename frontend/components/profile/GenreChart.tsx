@@ -7,7 +7,8 @@ interface GenreChartProps {
   genres: GenreWeight[];
 }
 
-const COLORS = ['#ff2d78', '#7c3aed', '#06b6d4', '#f59e0b', '#10b981', '#ec4899', '#8b5cf6', '#14b8a6'];
+// Paleta vintage cinematográfica
+const COLORS = ['#C9A36F', '#1E4D3E', '#53262A', '#C9A36F', '#1E4D3E', '#53262A', '#C9A36F', '#1E4D3E'];
 
 export default function GenreChart({ genres }: GenreChartProps) {
   const top6 = genres.slice(0, 6);
@@ -24,7 +25,7 @@ export default function GenreChart({ genres }: GenreChartProps) {
       <div style={{ height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={radarData}>
-            <PolarGrid stroke="rgba(124,58,237,0.2)" />
+            <PolarGrid stroke="rgba(201, 163, 117, 0.15)" />
             <PolarAngleAxis
               dataKey="genre"
               tick={{ fill: 'var(--text-secondary)', fontSize: 11, fontFamily: 'var(--font-body)' }}
@@ -32,21 +33,23 @@ export default function GenreChart({ genres }: GenreChartProps) {
             <Radar
               name="Preferência"
               dataKey="value"
-              stroke="#ff2d78"
-              fill="#ff2d78"
-              fillOpacity={0.2}
+              stroke="#C9A36F"
+              fill="#C9A36F"
+              fillOpacity={0.25}
               strokeWidth={2}
             />
             <Tooltip
               contentStyle={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-raised)',
+                border: '1px solid var(--border)',
                 borderRadius: '8px',
                 color: 'var(--text-primary)',
                 fontFamily: 'var(--font-body)',
                 fontSize: '0.85rem',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
               }}
-              formatter={(v: number) => [`${v}%`, 'Preferência']}
+              cursor={{ fill: 'rgba(201, 163, 117, 0.08)' }}
+              formatter={(v?: unknown) => [`${v ?? 0}%`, 'Preferência']}
             />
           </RadarChart>
         </ResponsiveContainer>
@@ -69,7 +72,7 @@ export default function GenreChart({ genres }: GenreChartProps) {
                 className="progress-fill"
                 style={{
                   width: `${genre.percentage}%`,
-                  background: `linear-gradient(90deg, ${COLORS[i % COLORS.length]}, ${COLORS[(i+1) % COLORS.length]})`,
+                  background: `linear-gradient(90deg, ${COLORS[i % COLORS.length]}, ${COLORS[(i+1) % COLORS.length]} 60%, transparent 60%)`,
                 }}
               />
             </div>

@@ -2,6 +2,7 @@
 // Centralized service for all TMDB API interactions
 // TMDB Docs: https://developers.themoviedb.org/3
 const axios = require('axios');
+const { cache } = require('../config/redis');
 
 const TMDB_BASE_URL = process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3';
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -62,16 +63,26 @@ const GENRE_MAP = {
  * Search movies by title
  */
 const searchMovies = async (query, page = 1) => {
+  const cacheKey = `tmdb:search:${query}:${page}`;
+
+  // Try cache first
+  const cached = await cache.get(cacheKey);
+  if (cached) return cached;
+
   try {
     const { data } = await tmdbClient.get('/search/movie', {
       params: { query, page, include_adult: false },
     });
-    return {
+    const result = {
       results: data.results.map(formatMovie),
       total_pages: data.total_pages,
       total_results: data.total_results,
       page: data.page,
     };
+
+    // Cache for 1 hour
+    await cache.set(cacheKey, result, 3600);
+    return result;
   } catch (error) {
     throw new Error(`TMDB search failed: ${error.message}`);
   }
@@ -81,9 +92,18 @@ const searchMovies = async (query, page = 1) => {
  * Get popular movies (for onboarding selection)
  */
 const getPopularMovies = async (page = 1) => {
+  const cacheKey = `tmdb:popular:${page}`;
+
+  const cached = await cache.get(cacheKey);
+  if (cached) return cached;
+
   try {
     const { data } = await tmdbClient.get('/movie/popular', { params: { page } });
-    return data.results.map(formatMovie);
+    const result = data.results.map(formatMovie);
+
+    // Cache for 6 hours (popular changes slowly)
+    await cache.set(cacheKey, result, 21600);
+    return result;
   } catch (error) {
     throw new Error(`TMDB popular movies failed: ${error.message}`);
   }
@@ -135,11 +155,20 @@ const discoverMovies = async (options = {}) => {
  * Get detailed movie info including credits and keywords
  */
 const getMovieDetails = async (movieId) => {
+  const cacheKey = `tmdb:movie:${movieId}`;
+
+  const cached = await cache.get(cacheKey);
+  if (cached) return cached;
+
   try {
     const { data } = await tmdbClient.get(`/movie/${movieId}`, {
       params: { append_to_response: 'credits,keywords,similar,videos' },
     });
-    return formatMovieDetails(data);
+    const result = formatMovieDetails(data);
+
+    // Cache for 24 hours (movie details rarely change)
+    await cache.set(cacheKey, result, 86400);
+    return result;
   } catch (error) {
     throw new Error(`TMDB movie details failed for ${movieId}: ${error.message}`);
   }

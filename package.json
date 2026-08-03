@@ -1,0 +1,27 @@
+{
+  "name": "cinematch",
+  "version": "1.0.0",
+  "description": "Sistema completo de recomendação de filmes com perfil cinematográfico personalizado, motor de recomendações baseado em IA e interface moderna.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pvolympio/CineMatch.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/pvolympio/CineMatch/issues"
+  },
+  "homepage": "https://github.com/pvolympio/CineMatch#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

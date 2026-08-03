@@ -1,86 +1,151 @@
 'use client';
-// app/register/page.tsx
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
 import { useStore } from '@/store/useStore';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Film, Mail, Lock, User, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { login } = useStore();
-  const [form, setForm] = useState({ email: '', username: '', password: '' });
-  const [error, setError] = useState('');
+  const [form, setForm]       = useState({ email: '', username: '', password: '' });
+  const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (form.password.length < 6) { setError('Senha deve ter pelo menos 6 caracteres'); return; }
+    if (form.password.length < 6) {
+      setError('Senha deve ter ao menos 6 caracteres');
+      return;
+    }
     setLoading(true);
     try {
       const data = await auth.register(form.email, form.username, form.password);
       login(data.user, data.token);
+      toast.success('Conta criada com sucesso!');
       router.push('/onboarding');
-    } catch (err: any) {
-      setError(err.message || 'Erro ao criar conta');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao criar conta');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-void)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'fixed', top: '-20%', right: '-10%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,45,120,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
-      <div style={{ position: 'fixed', bottom: '-20%', left: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+    <main className="min-h-screen bg-black flex items-center justify-center px-4 py-8 relative overflow-hidden font-display">
+      <div className="film-texture" />
 
-      <div className="glass" style={{ width: '100%', maxWidth: 440, borderRadius: 20, padding: '48px 40px', position: 'relative', zIndex: 1, animation: 'fadeInUp 0.5s ease forwards' }}>
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: 'linear-gradient(135deg,#ff2d78,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🎬</div>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', letterSpacing: '0.08em', background: 'linear-gradient(135deg,#ff2d78,#7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>CINEMATCH</span>
+      {/* Ambient Blobs */}
+      <div className="ambient-blob w-[500px] h.[500px] top-1/4 -right-48 opacity-25"
+           style={{ background: 'radial-gradient(circle, rgba(30, 77, 62, 0.25) 0%, transparent 70%)' }} />
+      <div className="ambient-blob w-[400px] h-[400px] bottom-0 left-1/3 opacity-20"
+           style={{ background: 'radial-gradient(circle, rgba(201, 163, 117, 0.15) 0%, transparent 70%)' }} />
+
+      <div className="relative z-10 w-full max-w-sm animate-fade-up">
+        {/* Brand */}
+        <Link href="/" className="flex items-center gap-2.5 justify-center mb-10 no-underline group">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+               style={{
+                 background: 'linear-gradient(135deg,#1E4D3E,#2D2D33)',
+                 boxShadow: '0 0 24px rgba(201, 163, 117, 0.4)'
+               }}>
+            <Film className="w-4.5 h-4.5 text-[#C9A36F]" />
           </div>
-          <h1 style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', fontWeight: 400 }}>Crie sua conta grátis</h1>
-        </div>
+          <span className="font-bold text-[17px] tracking-[-0.02em] text-white group-hover:text-[#F0E6D2] transition-colors">
+            CINEMA
+          </span>
+          <span className="font-mono text-[8px] text-[#5A5A5A] tracking-[0.15em] uppercase opacity-80">ATeLIER</span>
+        </Link>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 500 }}>Email</label>
-            <input className="input-field" type="email" placeholder="seu@email.com" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 500 }}>Nome de usuário</label>
-            <input className="input-field" type="text" placeholder="cinefilo123" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} required minLength={3} maxLength={30} pattern="[a-zA-Z0-9_]+" title="Letras, números e _ apenas" />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 500 }}>Senha</label>
-            <input className="input-field" type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required minLength={6} />
+        {/* Card */}
+        <div className="card-cinema p-7 rounded-[20px]">
+          <div className="mb-7">
+            <h1 className="type-title text-2xl text-white mb-1">Criar conta</h1>
+            <p className="text-[#5A5A5A] font-mono text-xs">Comece seu perfil cinematográfico</p>
           </div>
 
-          {error && (
-            <div style={{ background: 'rgba(255,45,120,0.1)', border: '1px solid rgba(255,45,120,0.25)', borderRadius: 8, padding: '10px 14px', color: '#ff6b9d', fontSize: '0.85rem' }}>{error}</div>
-          )}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="flex items-center gap-1.5 text-[11px] font-mono text-[#5A5A5A] uppercase tracking-wider mb-1.5">
+                <Mail className="w-3 h-3" /> E-mail
+              </label>
+              <input
+                type="email"
+                placeholder="seu@email.com"
+                value={form.email}
+                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                required
+                className="input-cinema"
+              />
+            </div>
 
-          <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '13px', marginTop: 8, fontSize: '0.95rem' }}>
-            {loading ? 'Criando conta...' : 'Criar Conta →'}
-          </button>
-        </form>
+            <div>
+              <label className="flex items-center gap-1.5 text-[11px] font-mono text-[#5A5A5A] uppercase tracking-wider mb-1.5">
+                <User className="w-3 h-3" /> Nome de usuário
+              </label>
+              <input
+                type="text"
+                placeholder="cinefilo123"
+                value={form.username}
+                onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
+                required
+                minLength={3}
+                maxLength={30}
+                pattern="[a-zA-Z0-9_]+"
+                className="input-cinema"
+              />
+            </div>
 
-        <div style={{ marginTop: 24, padding: '14px', background: 'rgba(124,58,237,0.08)', borderRadius: 10, border: '1px solid rgba(124,58,237,0.15)', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.5 }}>
-            🎬 Após criar sua conta, você vai selecionar filmes que gosta para montar seu perfil cinematográfico!
+            <div>
+              <label className="flex items-center gap-1.5 text-[11px] font-mono text-[#5A5A5A] uppercase tracking-wider mb-1.5">
+                <Lock className="w-3 h-3" /> Senha
+              </label>
+              <input
+                type="password"
+                placeholder="Mín. 6 caracteres"
+                value={form.password}
+                onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                required
+                minLength={6}
+                className="input-cinema"
+              />
+            </div>
+
+            {error && (
+              <p className="text-[#C9A36F] text-xs font-mono bg-[rgba(201,163,117,0.12)] border border-[rgba(201,163,117,0.3)] rounded-[8px] px-3 py-2">
+                {error}
+              </p>
+            )}
+
+            <Button variant="vinyl" size="lg" type="submit" disabled={loading} className="w-full mt-1 gap-2">
+              <span>{loading ? 'Criando conta...' : 'Criar Perfil'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </form>
+
+          {/* Info Note */}
+          <p className="mt-5 text-[#8A8A90] font-mono text-[10px] leading-relaxed text-center">
+            Após criar a conta, você selecionará filmes para calibrar seu DNA cinematográfico.
           </p>
-        </div>
 
-        <p style={{ textAlign: 'center', marginTop: 20, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Já tem conta?{' '}
-          <Link href="/login" style={{ color: '#a78bfa', textDecoration: 'none', fontWeight: 500 }}>Entrar</Link>
-        </p>
-        <p style={{ textAlign: 'center', marginTop: 12 }}>
-          <Link href="/" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: '0.8rem' }}>← Voltar ao início</Link>
-        </p>
+          <div className="mt-5 pt-5 border-t border-[#3A3A40] flex flex-col items-center gap-2.5">
+            <p className="text-[#5A5A5A] font-mono text-[11px]">
+              Já tem conta?{' '}
+              <Link href="/login" className="text-[#C9A36F] hover:text-[#F0E6D2] font-semibold transition-colors no-underline">
+                Entrar
+              </Link>
+            </p>
+            <Link href="/" className="flex items-center gap-1 text-[#8A8A90] hover:text-[#5A5A5A] font-mono text-[10px] transition-colors no-underline">
+              <ArrowLeft className="w-3 h-3" /> Início
+            </Link>
+          </div>
+        </div>
       </div>
-      <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </main>
   );
 }

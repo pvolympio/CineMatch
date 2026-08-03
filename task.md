@@ -1,0 +1,4 @@
+- [x] 1. Criar `components/ui/SwipeCard.tsx` com lógica do `framer-motion`
+- [x] 2. Criar `app/swipe/page.tsx` com a lógica de fetch e stack de filmes
+- [x] 3. Atualizar `components/layout/Navbar.tsx` para incluir o link para a página
+- [x] 4. Atualizar `app/dashboard/page.tsx` para incluir um botão em destaque

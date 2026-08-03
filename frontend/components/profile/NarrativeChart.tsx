@@ -14,7 +14,8 @@ const LABELS: Record<string, string> = {
   lighthearted: 'Leveza',
 };
 
-const COLORS = ['#7c3aed', '#ff2d78', '#f59e0b', '#06b6d4'];
+// Paleta vintage cinematográfica
+const COLORS = ['#C9A36F', '#1E4D3E', '#53262A', '#C9A36F'];
 
 export default function NarrativeChart({ profile }: NarrativeChartProps) {
   const data = Object.entries(profile).map(([key, value], i) => ({
@@ -31,13 +32,15 @@ export default function NarrativeChart({ profile }: NarrativeChartProps) {
           <YAxis type="category" dataKey="name" width={70} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
           <Tooltip
             contentStyle={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-subtle)',
+              background: 'var(--bg-raised)',
+              border: '1px solid var(--border)',
               borderRadius: '8px',
               color: 'var(--text-primary)',
               fontFamily: 'var(--font-body)',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
             }}
-            formatter={(v: number) => [`${v}%`, 'Afinidade']}
+            cursor={{ fill: 'rgba(201, 163, 117, 0.08)' }}
+            formatter={(v?: unknown) => [`${v ?? 0}%`, 'Afinidade']}
           />
           <Bar dataKey="value" radius={[0, 6, 6, 0]}>
             {data.map((entry, i) => (

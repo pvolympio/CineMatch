@@ -1,167 +1,255 @@
 'use client';
-// app/discover/page.tsx
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { profile as profileApi, ratings as ratingsApi } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { Movie } from '@/types';
 import Navbar from '@/components/layout/Navbar';
+import MovieCard from '@/components/movies/MovieCard';
+import SkeletonCard from '@/components/ui/SkeletonCard';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs } from '@/components/ui/tabs';
+import { Dialog } from '@/components/ui/dialog';
+import {
+  Sparkles,
+  RefreshCw,
+  Bookmark,
+  Check,
+  Star,
+  Film,
+  Calendar,
+  Layers,
+} from 'lucide-react';
 
 export default function DiscoverPage() {
   const router = useRouter();
   const { isAuthenticated } = useStore();
   const [gems, setGems] = useState<Movie[]>([]);
+  const [filteredGems, setFilteredGems] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [ratedIds, setRatedIds] = useState<Set<number>>(new Set());
   const [savingId, setSavingId] = useState<number | null>(null);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
-    if (!isAuthenticated) { router.push('/login'); return; }
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
     fetchGems();
-  }, []);
+  }, [isAuthenticated, router]);
 
   const fetchGems = async () => {
     setLoading(true);
     try {
       const data = await profileApi.recommendations(16);
-      setGems(data.recommendations);
-    } catch (e: any) {
-      if (e.message?.includes('onboarding')) router.push('/onboarding');
+      const list = (data.recommendations as Movie[]) || [];
+      setGems(list);
+      setFilteredGems(list);
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message?.includes('onboarding')) router.push('/onboarding');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (tabId === 'all') {
+      setFilteredGems(gems);
+    } else {
+      setFilteredGems(
+        gems.filter(
+          (m) =>
+            m.genres?.some((g) => g.name.toLowerCase().includes(tabId)) ||
+            m.overview?.toLowerCase().includes(tabId)
+        )
+      );
     }
   };
 
   const handleAddToWatchlist = async (movie: Movie) => {
     setSavingId(movie.id);
     try {
-      await ratingsApi.rate({ tmdb_movie_id: movie.id, movie_title: movie.title, movie_poster: movie.poster_url || '', watched: false, watchlist: true });
-      setRatedIds(prev => new Set([...prev, movie.id]));
-    } catch (e) { console.error(e); }
-    finally { setSavingId(null); }
+      await ratingsApi.rate({
+        tmdb_movie_id: movie.id,
+        movie_title: movie.title,
+        movie_poster: movie.poster_url || '',
+        watched: false,
+        watchlist: true,
+      });
+      setRatedIds((prev) => new Set(Array.from(prev).concat(movie.id)));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingId(null);
+    }
   };
 
+  const filterTabs = [
+    { id: 'all', label: 'Todas as Joias', icon: <Layers className="w-4 h-4" /> },
+    { id: 'sci-fi', label: 'Sci-Fi & Futuro', icon: <Sparkles className="w-4 h-4" /> },
+    { id: 'drama', label: 'Drama Intenso', icon: <Film className="w-4 h-4" /> },
+    { id: 'thriller', label: 'Suspense Noir', icon: <Star className="w-4 h-4" /> },
+  ];
+
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-void)', paddingBottom: 80 }}>
+    <main className="min-h-screen bg-[#06060a] pb-24 relative font-body text-slate-100">
+      <div className="film-texture" />
       <Navbar />
 
-      {/* Background */}
-      <div style={{ position: 'fixed', top: 0, right: 0, width: '50vw', height: '60vh', background: 'radial-gradient(ellipse at top right, rgba(255,45,120,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      {/* Top Ambient Glow */}
+      <div className="fixed top-0 right-0 w-[50vw] h-[50vh] bg-rose-950/15 filter blur-3xl pointer-events-none" />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '96px 24px 0' }}>
-        {/* Header */}
-        <div style={{ marginBottom: 48 }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Selecionado para você</p>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2.5rem, 6vw, 4rem)', letterSpacing: '0.04em', lineHeight: 0.95, marginBottom: 16 }}>
-            JOIAS<br />
-            <span style={{ background: 'linear-gradient(135deg,#ff2d78,#7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>ESCONDIDAS</span>
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: 500, lineHeight: 1.7, fontSize: '0.95rem' }}>
-            Filmes incríveis com alta avaliação mas baixa popularidade — selecionados especialmente com base no seu perfil cinematográfico.
-          </p>
-          <button onClick={fetchGems} className="btn-ghost" style={{ marginTop: 16, padding: '8px 20px', fontSize: '0.85rem' }}>
-            🔄 Novas Recomendações
-          </button>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 relative z-10">
+        {/* Header Title */}
+        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <Badge variant="vinyl" className="mb-3 px-3 py-1 font-mono text-xs uppercase">
+              <Sparkles className="w-3.5 h-3.5 text-[#F0E6D2]" />
+              <span>Curadoria Exclusiva</span>
+            </Badge>
+
+            <h1 className="font-display font-extrabold text-4xl sm:text-6xl tracking-tight text-white leading-tight">
+              JOIAS <span className="text-gradient-vinyl">ESCONDIDAS</span>
+            </h1>
+
+            <p className="text-[#5A5A5A] text-sm sm:text-base max-w-2xl mt-2 leading-relaxed font-normal">
+              Obras de alta aclamação e menor visibilidade comercial, selecionadas com base no seu padrão estético.
+            </p>
+          </div>
+
+          <Button variant="outline" size="md" onClick={fetchGems} disabled={loading} className="shrink-0">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Atualizar Seleção</span>
+          </Button>
         </div>
 
-        {/* Grid */}
+        {/* Filter Tabs Bar */}
+        <div className="mb-8">
+          <Tabs tabs={filterTabs} activeTab={activeTab} onChange={handleTabChange} />
+        </div>
+
+        {/* Movie Grid */}
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="skeleton" style={{ height: 360, borderRadius: 12 }} />
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            <SkeletonCard count={10} />
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-            {gems.map((movie, i) => (
-              <div key={movie.id} style={{ animation: `fadeInUp 0.5s ease ${(i % 8) * 0.06}s forwards`, opacity: 0 }}>
-                <div
-                  style={{
-                    height: 360, borderRadius: 12, position: 'relative', overflow: 'hidden', cursor: 'pointer',
-                    background: `url(${movie.poster_url}) center/cover no-repeat var(--bg-card)`,
-                    border: '1px solid var(--border-subtle)',
-                    transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-8px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 50px rgba(255,45,120,0.2)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = ''; }}
-                  onClick={() => setSelectedMovie(movie)}
-                >
-                  {/* Badges */}
-                  <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6, zIndex: 5, flexWrap: 'wrap' }}>
-                    <span className="score-badge">⭐ {movie.vote_average.toFixed(1)}</span>
-                    <span style={{ background: 'rgba(6,182,212,0.2)', border: '1px solid rgba(6,182,212,0.4)', color: '#06b6d4', padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600 }}>💎 JOIA</span>
-                  </div>
-
-                  {/* Gradient overlay */}
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,8,16,0.98) 0%, rgba(8,8,16,0.3) 55%, transparent 100%)' }} />
-
-                  {/* Info */}
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '16px 14px', zIndex: 5 }}>
-                    <h3 style={{ fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.3, marginBottom: 4 }}>{movie.title}</h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: 8 }}>
-                      {movie.release_year} · {movie.genres?.slice(0,2).map(g=>g.name).join(', ')}
-                    </p>
-                    {movie.reason && (
-                      <p style={{ fontSize: '0.7rem', color: '#a78bfa', fontStyle: 'italic', lineHeight: 1.4, marginBottom: 10 }}>
-                        💡 {movie.reason}
-                      </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {filteredGems.map((movie) => {
+              const isSaved = ratedIds.has(movie.id);
+              const isSaving = savingId === movie.id;
+              return (
+                <div key={movie.id} className="flex flex-col">
+                  <MovieCard movie={movie} onClick={() => setSelectedMovie(movie)} showReason={true} />
+                  <Button
+                    variant={isSaved ? 'vinyl' : 'outline'}
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToWatchlist(movie);
+                    }}
+                    disabled={isSaved || isSaving}
+                    className="mt-3 w-full text-xs"
+                  >
+                    {isSaving ? (
+                      <span>Salvando...</span>
+                    ) : isSaved ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Na Watchlist</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="w-3.5 h-3.5" />
+                        <span>+ Watchlist</span>
+                      </>
                     )}
-                    <button
-                      onClick={e => { e.stopPropagation(); handleAddToWatchlist(movie); }}
-                      disabled={ratedIds.has(movie.id) || savingId === movie.id}
-                      style={{
-                        width: '100%', padding: '7px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all 0.2s',
-                        background: ratedIds.has(movie.id) ? 'rgba(16,185,129,0.2)' : 'rgba(255,45,120,0.15)',
-                        color: ratedIds.has(movie.id) ? '#10b981' : '#ff2d78',
-                        border: `1px solid ${ratedIds.has(movie.id) ? 'rgba(16,185,129,0.3)' : 'rgba(255,45,120,0.25)'}`,
-                      }}
-                    >
-                      {ratedIds.has(movie.id) ? '✓ Na Watchlist' : savingId === movie.id ? '...' : '+ Watchlist'}
-                    </button>
-                  </div>
+                  </Button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Movie detail modal */}
+      {/* Movie Details Modal Dialog */}
       {selectedMovie && (
-        <div onClick={() => setSelectedMovie(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, backdropFilter: 'blur(8px)' }}>
-          <div onClick={e => e.stopPropagation()} className="glass" style={{ maxWidth: 600, width: '100%', borderRadius: 20, overflow: 'hidden', animation: 'fadeInUp 0.3s ease forwards' }}>
-            {selectedMovie.backdrop_url && (
-              <div style={{ height: 200, background: `url(${selectedMovie.backdrop_url}) center/cover`, position: 'relative' }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, rgba(18,18,31,1))' }} />
-              </div>
-            )}
-            <div style={{ padding: 28 }}>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ width: 80, height: 120, borderRadius: 8, background: `url(${selectedMovie.poster_url}) center/cover var(--bg-card)`, flexShrink: 0 }} />
-                <div>
-                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', letterSpacing: '0.04em', marginBottom: 4 }}>{selectedMovie.title}</h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 8 }}>{selectedMovie.release_year}</p>
-                  <span className="score-badge">⭐ {selectedMovie.vote_average.toFixed(1)}</span>
+        <Dialog isOpen={!!selectedMovie} onClose={() => setSelectedMovie(null)} className="max-w-4xl">
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Poster */}
+            <div className="w-full md:w-64 shrink-0 rounded-2xl overflow-hidden border border-[#3A3A40] shadow-2xl relative aspect-[2/3]">
+              <img
+                src={selectedMovie.poster_url || '/placeholder-movie.png'}
+                alt={selectedMovie.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {/* Movie Info */}
+            <div className="flex-1 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  {selectedMovie.vote_average && (
+                    <Badge variant="vinyl" className="font-mono text-sm px-3 py-1">
+                      <Star className="w-4 h-4 fill-[#F0E6D2] text-amber-400" />
+                      <span>{selectedMovie.vote_average.toFixed(1)} / 10</span>
+                    </Badge>
+                  )}
+                  {selectedMovie.release_date && (
+                    <span className="text-xs font-mono text-[#5A5A5A] flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {new Date(selectedMovie.release_date).getFullYear()}
+                    </span>
+                  )}
                 </div>
+
+                <h2 className="font-display font-bold text-3xl sm:text-4xl text-white mb-4 tracking-tight leading-tight">
+                  {selectedMovie.title}
+                </h2>
+
+                {selectedMovie.overview && (
+                  <p className="text-[#5A5A5A] text-sm leading-relaxed mb-6 font-normal">
+                    {selectedMovie.overview}
+                  </p>
+                )}
               </div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.7, marginTop: 16 }}>{selectedMovie.overview?.slice(0, 280)}...</p>
-              {selectedMovie.reason && (
-                <div style={{ marginTop: 16, padding: '12px 14px', background: 'rgba(124,58,237,0.1)', borderRadius: 10, border: '1px solid rgba(124,58,237,0.2)' }}>
-                  <p style={{ fontSize: '0.85rem', color: '#a78bfa' }}>💡 {selectedMovie.reason}</p>
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-                <button onClick={() => { handleAddToWatchlist(selectedMovie); setSelectedMovie(null); }} className="btn-primary" style={{ flex: 1, padding: '10px' }}>+ Adicionar à Watchlist</button>
-                <button onClick={() => setSelectedMovie(null)} className="btn-ghost" style={{ padding: '10px 20px' }}>Fechar</button>
+
+              {/* Action Buttons inside Dialog */}
+              <div className="flex items-center gap-3 pt-4 border-t border-[#3A3A40]">
+                <Button
+                  variant="vinyl"
+                  size="md"
+                  onClick={() => handleAddToWatchlist(selectedMovie)}
+                  disabled={ratedIds.has(selectedMovie.id) || savingId === selectedMovie.id}
+                >
+                  {savingId === selectedMovie.id ? (
+                    <span>Salvando...</span>
+                  ) : ratedIds.has(selectedMovie.id) ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Adicionado à Watchlist</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bookmark className="w-4 h-4" />
+                      <span>Adicionar à Watchlist</span>
+                    </>
+                  )}
+                </Button>
+
+                <Button variant="ghost" size="md" onClick={() => setSelectedMovie(null)}>
+                  Fechar
+                </Button>
               </div>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
-
-      <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </main>
   );
 }

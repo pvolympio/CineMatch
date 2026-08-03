@@ -1,14 +1,27 @@
 'use client';
-// app/onboarding/page.tsx
-import { useEffect, useState, useCallback } from 'react';
+
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { movies as moviesApi, ratings as ratingsApi } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { Movie } from '@/types';
+import confetti from 'canvas-confetti';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Star, Check, Sparkles, ArrowRight, ArrowLeft, Search, X, Clapperboard } from 'lucide-react';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { isAuthenticated, selectedMovies, movieRatings, toggleMovieSelection, setMovieRating, clearOnboarding, setProfile } = useStore();
+  const {
+    isAuthenticated,
+    selectedMovies,
+    movieRatings,
+    toggleMovieSelection,
+    setMovieRating,
+    clearOnboarding,
+    setProfile,
+  } = useStore();
 
   const [movieList, setMovieList] = useState<Movie[]>([]);
   const [search, setSearch] = useState('');
@@ -19,15 +32,18 @@ export default function OnboardingPage() {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    if (!isAuthenticated) { router.push('/login'); return; }
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
     loadMovies();
-  }, []);
+  }, [isAuthenticated, router]);
 
   const loadMovies = async (p = 1) => {
     setLoading(true);
     try {
       const data = await moviesApi.popular(p);
-      setMovieList(prev => p === 1 ? data.results : [...prev, ...data.results]);
+      setMovieList((prev) => (p === 1 ? (data.results as Movie[]) : [...prev, ...(data.results as Movie[])]));
     } catch (e) {
       console.error(e);
     } finally {
@@ -39,7 +55,7 @@ export default function OnboardingPage() {
     const timer = setTimeout(async () => {
       if (search.trim().length >= 2) {
         const data = await moviesApi.search(search);
-        setSearchResults(data.results);
+        setSearchResults(data.results as Movie[]);
       } else {
         setSearchResults([]);
       }
@@ -53,7 +69,7 @@ export default function OnboardingPage() {
     if (selectedMovies.length < 5) return;
     setSubmitting(true);
     try {
-      const ratingsList = selectedMovies.map(m => ({
+      const ratingsList = selectedMovies.map((m) => ({
         tmdb_movie_id: m.id,
         movie_title: m.title,
         movie_poster: m.poster_url,
@@ -62,9 +78,16 @@ export default function OnboardingPage() {
       const data = await ratingsApi.batch(ratingsList);
       if (data.profile) setProfile(data.profile);
       clearOnboarding();
-      router.push('/dashboard');
-    } catch (e: any) {
-      alert('Erro ao salvar: ' + e.message);
+      confetti({
+        particleCount: 120,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#C9A36F', '#F0E6D2', '#1E4D3E'],
+      });
+      toast.success('Perfil criado com sucesso!');
+      setTimeout(() => router.push('/dashboard'), 1500);
+    } catch (e: unknown) {
+      toast.error('Erro ao salvar: ' + (e instanceof Error ? e.message : 'Erro desconhecido'));
     } finally {
       setSubmitting(false);
     }
@@ -73,143 +96,217 @@ export default function OnboardingPage() {
   const progress = Math.min((selectedMovies.length / 5) * 100, 100);
 
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-void)', paddingBottom: 100 }}>
-      {/* Fixed header */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(8,8,16,0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(124,58,237,0.12)', padding: '16px 24px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+    <main className="min-h-screen bg-[#06060a] pb-24 relative font-body text-slate-100">
+      <div className="film-texture" />
+
+      {/* Fixed Sticky Header */}
+      <header className="fixed top-0 inset-x-0 z-50 bg-slate-950/90 backdrop-blur-2xl border-b border-[#3A3A40] px-4 sm:px-8 py-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', letterSpacing: '0.06em' }}>
-                {step === 'select' ? 'SELECIONE SEUS FILMES' : 'AVALIE OS FILMES'}
+              <Badge variant="vinyl" className="font-mono text-xs uppercase mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-[#F0E6D2]" />
+                <span>Onboarding Cinematográfico</span>
+              </Badge>
+              <h1 className="type-label text-xl sm:text-2xl text-white tracking-tight">
+                {step === 'select' ? 'SELECIONE SEUS FILMES FAVORITOS' : 'AVALIE SUA EXPERIÊNCIA'}
               </h1>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                {step === 'select' ? `${selectedMovies.length} selecionado${selectedMovies.length !== 1 ? 's' : ''} (mínimo 5)` : 'Quanto você gostou de cada um?'}
+              <p className="text-xs text-[#5A5A5A]">
+                {step === 'select'
+                  ? `${selectedMovies.length} selecionado(s) • Mínimo necessário: 5`
+                  : 'Atribua uma nota para calibrar seu algoritmo'}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+
+            <div className="flex items-center gap-3">
               {step === 'select' && selectedMovies.length >= 5 && (
-                <button className="btn-primary" onClick={() => setStep('rate')} style={{ padding: '8px 20px' }}>
-                  Avaliar →
-                </button>
+                <Button variant="vinyl" size="sm" onClick={() => setStep('rate')}>
+                  <span>Avaliar</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
               )}
               {step === 'rate' && (
                 <>
-                  <button className="btn-ghost" onClick={() => setStep('select')} style={{ padding: '8px 16px' }}>← Voltar</button>
-                  <button className="btn-primary" onClick={handleSubmit} disabled={submitting} style={{ padding: '8px 20px' }}>
-                    {submitting ? 'Salvando...' : 'Criar Perfil 🎬'}
-                  </button>
+                  <Button variant="ghost" size="sm" onClick={() => setStep('select')}>
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Voltar</span>
+                  </Button>
+                  <Button variant="vinyl" size="sm" onClick={handleSubmit} disabled={ submitting}>
+                    <Clapperboard className="w-4 h-4" />
+                    <span>{submitting ? 'Salvando...' : 'Criar Perfil'}</span>
+                  </Button>
                 </>
               )}
             </div>
           </div>
-          {/* Progress bar */}
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${progress}%` }} />
+
+          {/* Progress Bar */}
+          <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-[#3A3A40]">
+            <div
+              className="h-full transition-all duration-500"
+              style={{
+                width: `${progress}%`,
+                background: `linear-gradient(90deg, #C9A36F, #1E4D3E, #C9A36F)`
+              }}
+            />
           </div>
         </div>
-      </div>
+      </header>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '120px 24px 0' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 relative z-10">
         {step === 'select' ? (
           <>
-            {/* Search */}
-            <div style={{ marginBottom: 32, maxWidth: 500 }}>
-              <input
-                className="input-field"
-                type="text"
-                placeholder="🔍 Buscar um filme específico..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+            {/* Search Input */}
+            <div className="mb-6 max-w-md">
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#5A5A5A] absolute left-3 top-3.5" />
+                <input
+                  type="text"
+                  placeholder="Buscar um filme específico..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-slate-900/80 border border-[#3A3A40] text-white placeholder:text-[#5A5A5A] text-sm rounded-xl pl-9 pr-4 py-3 focus:outline-none focus:border-[#C9A36F]/50 transition-all font-mono"
+                />
+              </div>
             </div>
 
-            {/* Selected pills */}
+            {/* Selected Movie Badges */}
             {selectedMovies.length > 0 && (
-              <div style={{ marginBottom: 24, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {selectedMovies.map(m => (
-                  <div key={m.id} onClick={() => toggleMovieSelection(m)} style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    background: 'rgba(255,45,120,0.15)', border: '1px solid rgba(255,45,120,0.3)',
-                    borderRadius: 100, padding: '4px 12px 4px 8px', cursor: 'pointer',
-                    fontSize: '0.8rem', color: '#ff6b9d', fontWeight: 500,
-                  }}>
-                    <span>✕</span> {m.title.length > 20 ? m.title.substring(0, 20) + '...' : m.title}
-                  </div>
+              <div className="mb-6 flex gap-2 flex-wrap">
+                {selectedMovies.map((m) => (
+                  <Badge
+                    key={m.id}
+                    variant="vinyl"
+                    onClick={() => toggleMovieSelection(m)}
+                    className="cursor-pointer hover:bg-[#C9A36F]/30 transition-colors py-1.5 px-3 font-mono text-xs"
+                  >
+                    <X className="w-3 h-3" />
+                    <span className="truncate max-w-[120px]">
+                      {m.title.length > 20 ? m.title.substring(0, 20) + '…' : m.title}
+                    </span>
+                  </Badge>
                 ))}
               </div>
             )}
 
-            {/* Movie grid */}
+            {/* Movie Grid */}
             {loading && movieList.length === 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 16 }}>
-                {Array.from({ length: 20 }).map((_, i) => (
-                  <div key={i} className="skeleton" style={{ height: 240, borderRadius: 12 }} />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                {Array.from({ length: 15 }).map((_, i) => (
+                  <div key={i} className="aspect-[2/3] rounded-2xl bg-slate-900 animate-pulse border border-[#3A3A40]" />
                 ))}
               </div>
             ) : (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 16 }}>
-                  {displayMovies.map(movie => {
-                    const isSelected = selectedMovies.some(m => m.id === movie.id);
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                  {displayMovies.map((movie) => {
+                    const isSelected = selectedMovies.some((m) => m.id === movie.id);
                     return (
                       <div
                         key={movie.id}
                         onClick={() => toggleMovieSelection(movie)}
+                        className={`group relative aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ${
+                          isSelected
+                            ? 'ring-2 ring-[#C9A36F] shadow-xl shadow-[#C9A36F]/30 scale-[1.02]'
+                            : 'border border-[#3A3A40] hover:border-[#C9A36F]/40'
+                        }`}
                         style={{
-                          height: 240, borderRadius: 12, cursor: 'pointer', position: 'relative', overflow: 'hidden',
-                          background: `url(${movie.poster_url || ''}) center/cover no-repeat var(--bg-card)`,
-                          border: isSelected ? '2px solid var(--accent-rose)' : '1px solid var(--border-subtle)',
-                          boxShadow: isSelected ? '0 0 0 2px var(--accent-rose)' : 'none',
-                          transition: 'all 0.2s ease',
-                          transform: isSelected ? 'scale(1.03)' : 'scale(1)',
+                          background: `url(${movie.poster_url || '/placeholder-movie.png'}) center/cover no-repeat`,
                         }}
                       >
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0C] via-[#0A0A0C]/60 to-transparent opacity-85 group-hover:opacity-95 transition-opacity" />
+
                         {isSelected && (
-                          <div style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, background: 'var(--accent-rose)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 'bold', zIndex: 5 }}>✓</div>
+                          <div className="absolute top-3 right-3 z-20 w-7 h-7 rounded-full bg-[#53262A] text-white flex items-center justify-center shadow-lg border border-[#C9A36F]/30">
+                            <Check className="w-4 h-4 stroke-[3]" />
+                          </div>
                         )}
-                        <div style={{ position: 'absolute', top: 8, left: 8 }}>
-                          <span className="score-badge" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>⭐ {movie.vote_average.toFixed(1)}</span>
+
+                        <div className="absolute top-3 left-3 z-20">
+                          <Badge variant="vinyl" className="font-mono text-[10px] bg-[#161618]/80 border-[#C9A36F]/30">
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            <span>{movie.vote_average.toFixed(1)}</span>
+                          </Badge>
                         </div>
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,8,16,0.95) 0%, transparent 60%)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '12px 10px' }}>
-                          <p style={{ fontSize: '0.8rem', fontWeight: 600, lineHeight: 1.3, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{movie.title}</p>
-                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: 2 }}>{movie.release_year}</p>
+
+                        <div className="absolute bottom-0 inset-x-0 p-3 z-10">
+                          <h3 className="font-display font-bold text-sm text-white leading-snug group-hover:text-[#F0E6D2] transition-colors drop-shadow-md">
+                            {movie.title}
+                          </h3>
+                          <span className="text-[10px] font-mono text-[#5A5A5A]">{movie.release_year}</span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Load more */}
+                {/* Load More Button */}
                 {!search && (
-                  <div style={{ textAlign: 'center', marginTop: 32 }}>
-                    <button className="btn-ghost" onClick={() => { const next = page + 1; setPage(next); loadMovies(next); }} disabled={loading}>
-                      {loading ? 'Carregando...' : 'Ver mais filmes'}
-                    </button>
+                  <div className="text-center mt-10">
+                    <Button
+                      variant="outline"
+                      size="md"
+                      onClick={() => {
+                        const next = page + 1;
+                        setPage(next);
+                        loadMovies(next);
+                      }}
+                      disabled={loading}
+                    >
+                      {loading ? 'Carregando...' : 'Carregar mais filmes'}
+                    </Button>
                   </div>
                 )}
               </>
             )}
           </>
         ) : (
-          /* Rating step */
-          <div style={{ maxWidth: 700, margin: '0 auto' }}>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6 }}>
-              Sua avaliação nos ajuda a entender seu gosto com mais precisão. Seja honesto!
+          /* Step 2: Rate Step */
+          <div className="max-w-3xl mx-auto">
+            <p className="text-[#5A5A5A] text-sm mb-8 leading-relaxed font-normal">
+              Atribua uma nota de 1 a 10 para cada obra selecionada. Quanto mais precisa for sua avaliação, melhor será a precisão do algoritmo.
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {selectedMovies.map(movie => (
-                <div key={movie.id} className="glass" style={{ borderRadius: 16, padding: 20, display: 'flex', gap: 16, alignItems: 'center' }}>
-                  <div style={{ width: 60, height: 90, borderRadius: 8, background: `url(${movie.poster_url}) center/cover var(--bg-card)`, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontWeight: 600, marginBottom: 4, fontSize: '1rem' }}>{movie.title}</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: 12 }}>{movie.release_year} · {movie.genres?.slice(0,2).map(g=>g.name).join(', ')}</p>
-                    {/* Star rating */}
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      {[2,4,6,8,10].map(r => (
-                        <span key={r} onClick={() => setMovieRating(movie.id, r)} style={{ fontSize: '1.4rem', cursor: 'pointer', filter: (movieRatings[movie.id] || 7) >= r ? 'brightness(1)' : 'brightness(0.25)', transition: 'all 0.15s', userSelect: 'none' }}>⭐</span>
-                      ))}
-                      <span style={{ marginLeft: 8, color: '#f59e0b', fontWeight: 600, fontSize: '0.9rem' }}>
-                        {movieRatings[movie.id] || 7}/10
+
+            <div className="flex flex-col gap-4">
+              {selectedMovies.map((movie) => (
+                <div
+                  key={movie.id}
+                  className="rounded-2xl border border-[#3A3A40] bg-slate-900/60 p-4 sm:p-5 backdrop-blur-xl flex gap-4 sm:gap-6 items-center"
+                >
+                  <div
+                    className="w-16 h-24 rounded-xl bg-slate-950 bg-center bg-cover shrink-0 border border-[#3A3A40]"
+                    style={{ backgroundImage: `url(${movie.poster_url})` }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="type-label text-base sm:text-lg text-white truncate mb-1">
+                      {movie.title}
+                    </h3>
+                    <p className="text-xs text-[#5A5A5A] mb-3 font-mono">
+                      {movie.release_year} • {movie.genres?.slice(0, 2).map((g) => g.name).join(', ')}
+                    </p>
+
+                    {/* Star Rating Bar */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {[2, 4, 6, 8, 10].map((r) => {
+                        const isFilled = (movieRatings[movie.id] || 7) >= r;
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => setMovieRating(movie.id, r)}
+                            className="p-1 cursor-pointer transition-transform hover:scale-125 focus:outline-none"
+                          >
+                            <Star
+                              className={`w-5 h-5 ${
+                                isFilled
+                                  ? 'fill-[#C9A36F] text-[#C9A36F]'
+                                  : 'fill-slate-800 text-slate-700'
+                              }`}
+                            />
+                          </button>
+                        );
+                      })}
+                      <span className="ml-3 font-mono font-bold text-sm text-[#C9A36F]">
+                        {movieRatings[movie.id] || 7} / 10
                       </span>
                     </div>
                   </div>
@@ -217,10 +314,11 @@ export default function OnboardingPage() {
               ))}
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: 32 }}>
-              <button className="btn-primary" onClick={handleSubmit} disabled={submitting} style={{ padding: '14px 40px', fontSize: '1rem' }}>
-                {submitting ? '⏳ Analisando seu perfil...' : '🎬 Criar Meu Perfil Cinematográfico'}
-              </button>
+            <div className="text-center mt-10">
+              <Button variant="vinyl" size="lg" onClick={handleSubmit} disabled={submitting} className="px-10">
+                <Clapperboard className="w-5 h-5" />
+                <span>{submitting ? 'Analisando seu perfil...' : 'Criar Meu Perfil Cinematográfico'}</span>
+              </Button>
             </div>
           </div>
         )}

@@ -1,6 +1,8 @@
 // lib/api.ts
 // Centralized API client for all backend calls
 
+import { User, CinematicProfile } from '@/types';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 // =============================================
@@ -56,18 +58,18 @@ async function apiFetch<T>(
 // =============================================
 export const auth = {
   register: (email: string, username: string, password: string) =>
-    apiFetch<{ token: string; user: any }>('/auth/register', {
+    apiFetch<{ token: string; user: User }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, username, password }),
     }),
 
   login: (email: string, password: string) =>
-    apiFetch<{ token: string; user: any }>('/auth/login', {
+    apiFetch<{ token: string; user: User }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
 
-  me: () => apiFetch<{ user: any }>('/auth/me'),
+  me: () => apiFetch<{ user: User }>('/auth/me'),
 };
 
 // =============================================
@@ -75,22 +77,22 @@ export const auth = {
 // =============================================
 export const movies = {
   search: (q: string, page = 1) =>
-    apiFetch<{ results: any[]; total_results: number }>(`/movies/search?q=${encodeURIComponent(q)}&page=${page}`),
+    apiFetch<{ results: unknown[]; total_results: number }>(`/movies/search?q=${encodeURIComponent(q)}&page=${page}`),
 
   popular: (page = 1) =>
-    apiFetch<{ results: any[] }>(`/movies/popular?page=${page}`),
+    apiFetch<{ results: unknown[] }>(`/movies/popular?page=${page}`),
 
   trending: () =>
-    apiFetch<{ results: any[] }>('/movies/trending'),
+    apiFetch<{ results: unknown[] }>('/movies/trending'),
 
   genres: () =>
-    apiFetch<{ genres: any[] }>('/movies/genres'),
+    apiFetch<{ genres: unknown[] }>('/movies/genres'),
 
   details: (id: number) =>
-    apiFetch<{ movie: any; user_rating: any }>(`/movies/${id}`),
+    apiFetch<{ movie: unknown; user_rating: unknown }>(`/movies/${id}`),
 
   similar: (id: number) =>
-    apiFetch<{ results: any[] }>(`/movies/${id}/similar`),
+    apiFetch<{ results: unknown[] }>(`/movies/${id}/similar`),
 };
 
 // =============================================
@@ -105,19 +107,19 @@ export const ratings = {
     watched?: boolean;
     watchlist?: boolean;
   }) =>
-    apiFetch<{ rating: any }>('/ratings', {
+    apiFetch<{ rating: unknown }>('/ratings', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  batch: (ratingsList: any[]) =>
-    apiFetch<{ profile: any; ratings_count: number }>('/ratings/batch', {
+  batch: (ratingsList: unknown[]) =>
+    apiFetch<{ profile: CinematicProfile; ratings_count: number }>('/ratings/batch', {
       method: 'POST',
       body: JSON.stringify({ ratings: ratingsList }),
     }),
 
   list: (page = 1) =>
-    apiFetch<{ ratings: any[]; total: number }>(`/ratings?page=${page}`),
+    apiFetch<{ ratings: unknown[]; total: number }>(`/ratings?page=${page}`),
 
   remove: (movieId: number) =>
     apiFetch<{ success: boolean }>(`/ratings/${movieId}`, { method: 'DELETE' }),
@@ -128,17 +130,17 @@ export const ratings = {
 // =============================================
 export const profile = {
   get: () =>
-    apiFetch<{ profile: any; onboarding_needed?: boolean }>('/profile'),
+    apiFetch<{ profile: unknown; onboarding_needed?: boolean }>('/profile'),
 
   compute: () =>
-    apiFetch<{ profile: any }>('/profile/compute', { method: 'POST' }),
+    apiFetch<{ profile: unknown }>('/profile/compute', { method: 'POST' }),
 
   recommendations: (limit = 12) =>
-    apiFetch<{ recommendations: any[] }>(`/profile/recommendations?limit=${limit}`),
+    apiFetch<{ recommendations: unknown[] }>(`/profile/recommendations?limit=${limit}`),
 
   graph: (movieId: number) =>
-    apiFetch<{ nodes: any[]; edges: any[]; center_movie: any }>(`/profile/graph/${movieId}`),
+    apiFetch<{ nodes: unknown[]; edges: unknown[]; center_movie: unknown }>(`/profile/graph/${movieId}`),
 
   stats: () =>
-    apiFetch<{ stats: any }>('/profile/stats'),
+    apiFetch<{ stats: unknown }>('/profile/stats'),
 };

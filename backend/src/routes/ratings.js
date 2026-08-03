@@ -1,7 +1,7 @@
 // src/routes/ratings.js
 // User rating endpoints: rate movies, get ratings, batch rate (onboarding)
 const express = require('express');
-const { body, validationResult } = require('express-validator');
+const { body, param, query: expressQuery, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { computeUserProfile } = require('../services/recommendationService');
@@ -17,9 +17,9 @@ router.use(authenticate);
 // =============================================
 router.post('/', [
   body('tmdb_movie_id').isInt({ min: 1 }).withMessage('ID do filme inválido'),
-  body('rating').optional().isFloat({ min: 0, max: 10 }),
-  body('movie_title').notEmpty().withMessage('Título obrigatório'),
-  body('movie_poster').optional().isString(),
+  body('rating').optional().isFloat({ min: 0, max: 10 }).withMessage('Nota deve estar entre 0 e 10'),
+  body('movie_title').trim().notEmpty().withMessage('Título obrigatório').escape(),
+  body('movie_poster').optional().trim().isString(),
   body('watched').optional().isBoolean(),
   body('watchlist').optional().isBoolean(),
 ], async (req, res) => {
@@ -136,10 +136,19 @@ router.post('/batch', [
 
 // =============================================
 // GET /api/ratings
-// Get all ratings for the current user
+// Get all ratings for the current user with pagination
 // =============================================
-router.get('/', async (req, res) => {
+router.get('/', [
+  expressQuery('page').optional().isInt({ min: 1 }).withMessage('Página inválida'),
+  expressQuery('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limite deve estar entre 1 e 100'),
+  expressQuery('sort').optional().isIn(['updated_at', 'rating', 'movie_title', 'created_at']).withMessage('Ordenação inválida'),
+], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
     const { page = 1, limit = 20, sort = 'updated_at' } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
@@ -147,8 +156,8 @@ router.get('/', async (req, res) => {
     const sortColumn = validSorts.includes(sort) ? sort : 'updated_at';
 
     const { rows } = await query(
-      `SELECT * FROM user_ratings 
-       WHERE user_id = $1 
+      `SELECT * FROM user_ratings
+       WHERE user_id = $1
        ORDER BY ${sortColumn} DESC
        LIMIT $2 OFFSET $3`,
       [req.user.id, parseInt(limit), offset]
@@ -164,6 +173,8 @@ router.get('/', async (req, res) => {
       ratings: rows,
       total: parseInt(count),
       page: parseInt(page),
+      limit: parseInt(limit),
+      total_pages: Math.ceil(parseInt(count) / parseInt(limit)),
     });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Erro ao buscar avaliações' });
@@ -174,8 +185,15 @@ router.get('/', async (req, res) => {
 // DELETE /api/ratings/:movieId
 // Remove a rating
 // =============================================
-router.delete('/:movieId', async (req, res) => {
+router.delete('/:movieId', [
+  param('movieId').isInt({ min: 1 }).withMessage('ID do filme inválido'),
+], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
     const movieId = parseInt(req.params.movieId);
     await query(
       'DELETE FROM user_ratings WHERE user_id = $1 AND tmdb_movie_id = $2',

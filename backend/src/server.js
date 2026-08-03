@@ -4,19 +4,38 @@
 // =============================================
 require('dotenv').config();
 
+const Sentry = require('@sentry/node');
+const { nodeProfilingIntegration } = require('@sentry/profiling-node');
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || '',
+  integrations: [
+    nodeProfilingIntegration(),
+  ],
+  tracesSampleRate: 1.0,
+  profilesSampleRate: 1.0,
+});
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const { RedisStore } = require('rate-limit-redis');
+const { getRedisClient } = require('./config/redis');
+const logger = require('./config/logger');
 
 // Import routes
 const authRoutes = require('./routes/auth');
 const moviesRoutes = require('./routes/movies');
 const ratingsRoutes = require('./routes/ratings');
 const profileRoutes = require('./routes/profile');
+const watchlistRoutes = require('./routes/watchlist');
+const listsRoutes = require('./routes/lists');
 
 const app = express();
+
 const PORT = process.env.PORT || 3001;
 
 // =============================================
@@ -34,29 +53,40 @@ app.use(cors({
     process.env.FRONTEND_URL || 'http://localhost:3000',
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:3002',
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }));
 
-// Rate limiting - prevent abuse
+// Rate limiting - prevent abuse (using memory store for now)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200,
   message: { success: false, error: 'Muitas requisições. Tente novamente em alguns minutos.' },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use user ID if authenticated, otherwise IP
+    return req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`;
+  },
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10, // Stricter limit for auth endpoints
   message: { success: false, error: 'Muitas tentativas de login. Aguarde 15 minutos.' },
+  keyGenerator: (req) => `ip:${req.ip}`,
 });
 
 app.use('/api/', generalLimiter);
 app.use('/api/auth/', authLimiter);
+
+// =============================================
+// COMPRESSION MIDDLEWARE
+// =============================================
+app.use(compression());
 
 // =============================================
 // REQUEST PARSING MIDDLEWARE
@@ -66,7 +96,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging (only in development)
 if (process.env.NODE_ENV !== 'production') {
-  app.use(morgan('dev'));
+  app.use(morgan('dev', { stream: logger.stream }));
+} else {
+  app.use(morgan('combined', { stream: logger.stream }));
 }
 
 // =============================================
@@ -76,6 +108,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/movies', moviesRoutes);
 app.use('/api/ratings', ratingsRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/watchlist', watchlistRoutes);
+app.use('/api/lists', listsRoutes);
 
 // =============================================
 // HEALTH CHECK
@@ -116,8 +150,15 @@ app.use((req, res) => {
 // =============================================
 // GLOBAL ERROR HANDLER
 // =============================================
+Sentry.setupExpressErrorHandler(app);
+
 app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error:', err);
+  logger.error('Unhandled error:', {
+    message: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+  });
 
   // Don't leak error details in production
   const message = process.env.NODE_ENV === 'production'
@@ -135,16 +176,16 @@ app.use((err, req, res, next) => {
 // START SERVER
 // =============================================
 app.listen(PORT, () => {
-  console.log('\n🎬 ================================');
-  console.log(`🎬  CineMatch API is running!`);
-  console.log(`🎬  Port: ${PORT}`);
-  console.log(`🎬  Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🎬  Health: http://localhost:${PORT}/health`);
-  console.log('🎬 ================================\n');
+  logger.info('🎬 ================================');
+  logger.info(`🎬  CineMatch API is running!`);
+  logger.info(`🎬  Port: ${PORT}`);
+  logger.info(`🎬  Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`🎬  Health: http://localhost:${PORT}/health`);
+  logger.info('🎬 ================================');
 
   if (!process.env.TMDB_API_KEY || process.env.TMDB_API_KEY === 'your_tmdb_api_key_here') {
-    console.warn('⚠️  WARNING: TMDB_API_KEY not set! Movie features won\'t work.');
-    console.warn('   Get a free key at: https://www.themoviedb.org/settings/api\n');
+    logger.warn('⚠️  WARNING: TMDB_API_KEY not set! Movie features won\'t work.');
+    logger.warn('   Get a free key at: https://www.themoviedb.org/settings/api');
   }
 });
 

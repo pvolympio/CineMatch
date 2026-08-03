@@ -1,198 +1,262 @@
 'use client';
-// app/dashboard/page.tsx
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { profile as profileApi } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { CinematicProfile } from '@/types';
 import Navbar from '@/components/layout/Navbar';
 import GenreChart from '@/components/profile/GenreChart';
 import NarrativeChart from '@/components/profile/NarrativeChart';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
+import {
+  Film, Sparkles, Flame, Compass,
+  BarChart3, Brain, Clapperboard,
+  Award, ArrowRight,
+} from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { isAuthenticated, user } = useStore();
   const [profileData, setProfileData] = useState<CinematicProfile | null>(null);
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats]             = useState<Record<string, number> | null>(null);
+  const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
     if (!isAuthenticated) { router.push('/login'); return; }
     fetchData();
-  }, []);
+  }, [isAuthenticated, router]);
 
   const fetchData = async () => {
     try {
-      const [profileRes, statsRes] = await Promise.all([
-        profileApi.get(),
-        profileApi.stats(),
-      ]);
-      if (profileRes.onboarding_needed) { router.push('/onboarding'); return; }
-      setProfileData(profileRes.profile);
-      setStats(statsRes.stats);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+      const [pRes, sRes] = await Promise.all([profileApi.get(), profileApi.stats()]);
+      if (pRes.onboarding_needed) { router.push('/onboarding'); return; }
+      setProfileData(pRes.profile as CinematicProfile);
+      setStats(sRes.stats as Record<string, number>);
+    } catch (e) { console.error(e); }
+    finally     { setLoading(false); }
   };
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: '100vh', background: 'var(--bg-void)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Navbar />
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: 16, animation: 'spin 1s linear infinite' }}>🎬</div>
-          <p style={{ color: 'var(--text-secondary)' }}>Carregando seu perfil...</p>
+  if (loading) return (
+    <main className="min-h-screen bg-black flex items-center justify-center font-display">
+      <div className="film-texture" />
+      <Navbar />
+      <div className="flex flex-col items-center gap-3 z-10">
+        <div className="w-10 h-10 rounded-xl bg-[rgba(201,163,117,0.15)] border border-[rgba(201,163,117,0.3)] flex items-center justify-center animate-pulse">
+          <Film className="w-5 h-5 text-[#C9A36F]" />
         </div>
-      </main>
-    );
-  }
+        <p className="font-mono text-[11px] text-[#5A5A5A] uppercase tracking-widest">Carregando arquivo...</p>
+      </div>
+    </main>
+  );
 
   if (!profileData) return null;
 
   const personality = profileData.personality;
 
+  const styleLabels: Record<string, string> = {
+    sci_fi: 'Ficção Científica', drama: 'Drama', action: 'Ação',
+    comedy: 'Comédia', thriller: 'Thriller', horror: 'Terror',
+    animation: 'Animação', documentary: 'Documentário',
+  };
+
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-void)', paddingBottom: 80 }}>
+    <main className="min-h-screen bg-black text-[#F0E6D2] pb-28 relative font-display">
+      <div className="film-texture" />
       <Navbar />
 
-      {/* BG accent */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '40vh', background: 'linear-gradient(180deg, rgba(124,58,237,0.06) 0%, transparent 100%)', pointerEvents: 'none' }} />
+      {/* Ambient light */}
+      <div className="ambient-blob w-[500px] h-[500px] top-0 left-0 opacity-8"
+           style={{ background: 'radial-gradient(circle, rgba(201, 163, 117, 0.3) 0%, transparent 70%)' }} />
+      <div className="ambient-blob w-[400px] h-[400px] bottom-1/4 right-0 opacity-6"
+           style={{ background: 'radial-gradient(circle, rgba(30, 77, 62, 0.15) 0%, transparent 70%)' }} />
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '96px 24px 0' }}>
-        {/* Hero header */}
-        <div style={{ marginBottom: 48, animation: 'fadeInUp 0.6s ease forwards' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Seu Perfil Cinematográfico</p>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 relative z-10">
+
+        {/* ── Identity Header ── */}
+        <section className="mb-10 pt-6">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
             <div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2rem, 5vw, 3.5rem)', letterSpacing: '0.04em', lineHeight: 1, marginBottom: 8 }}>
-                OLÁ, <span style={{ background: 'linear-gradient(135deg,#ff2d78,#7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{user?.username?.toUpperCase()}</span>
+              {/* Label */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C9A36F] animate-pulse" />
+                <span className="font-mono text-[10px] text-[#5A5A5A] uppercase tracking-[0.14em]">
+                  Arquivo de Espectador
+                </span>
+              </div>
+
+              {/* Username */}
+              <h1 className="type-hero text-[clamp(2.8rem,7vw,5rem)] text-white leading-[0.9] tracking-[-0.03em] mb-4">
+                {user?.username?.toUpperCase()}
               </h1>
+
+              {/* Archetype */}
               {personality && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: '1.5rem' }}>{personality.icon}</span>
+                <div className="flex items-center gap-3 mt-4">
+                  <div className="w-8 h-8 rounded-xl bg-[rgba(201, 163, 117,0.1)] border border-[rgba(201, 163, 117, 0.25)] flex items-center justify-center">
+                    <Award className="w-4 h-4 text-[#C9A36F]" />
+                  </div>
                   <div>
-                    <p style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>{personality.name}</p>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{personality.desc}</p>
+                    <p className="font-display font-semibold text-[13px] text-white">{personality.name}</p>
+                    <p className="font-mono text-[10px] text-[#8A8A90]">{personality.desc}</p>
                   </div>
                 </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <Link href="/discover"><button className="btn-primary" style={{ padding: '10px 20px' }}>💎 Ver Recomendações</button></Link>
-              <Link href="/explore"><button className="btn-ghost" style={{ padding: '10px 20px' }}>🕸️ Explorar</button></Link>
+
+            {/* Action Row */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Link href="/discover">
+                <Button variant="vinyl" size="md" className="gap-2">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Recomendações
+                </Button>
+              </Link>
+              <Link href="/swipe">
+                <Button variant="outline" size="md" className="gap-2">
+                  <Flame className="w-3.5 h-3.5" />
+                  Avaliar
+                </Button>
+              </Link>
+              <Link href="/explore">
+                <Button variant="ghost" size="md" className="gap-2">
+                  <Compass className="w-3.5 h-3.5" />
+                  Grafo
+                </Button>
+              </Link>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Stats row */}
+        {/* ── Divider + Stats ── */}
+        <div className="divider mb-8" />
+
         {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 32 }}>
+          <section className="mb-10 grid grid-cols-2 sm:grid-cols-4 gap-5">
             {[
-              { label: 'Filmes Avaliados', value: stats.total_rated, icon: '🎬', color: '#7c3aed' },
-              { label: 'Nota Média', value: `${stats.avg_rating}/10`, icon: '⭐', color: '#f59e0b' },
-              { label: 'Amados', value: stats.loved, icon: '❤️', color: '#ff2d78' },
-              { label: 'Na Watchlist', value: stats.watchlist_count, icon: '📋', color: '#06b6d4' },
+              { v: stats.total_rated,    l: 'Avaliados',   accent: '#C9A36F' },
+              { v: `${stats.avg_rating || 0}`,l: 'Nota Média',  accent: '#C9A36F' },
+              { v: stats.loved,          l: 'Aclamados',   accent: '#C9A36F' },
+              { v: stats.watchlist_count,l: 'Watchlist',   accent: '#1E4D3E' },
             ].map((s, i) => (
-              <div key={i} className="glass" style={{ borderRadius: 14, padding: '20px 20px', textAlign: 'center', animation: `fadeInUp 0.5s ease ${i * 0.1}s forwards`, opacity: 0 }}>
-                <div style={{ fontSize: '1.8rem', marginBottom: 8 }}>{s.icon}</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: s.color, letterSpacing: '0.03em' }}>{s.value}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>{s.label}</div>
+              <div key={i} className="card-cinema p-5">
+                <p className="font-mono text-[10px] text-[#5A5A5A] uppercase tracking-[0.1em] mb-2">{s.l}</p>
+                <p className="font-mono font-semibold text-[2.25rem] tracking-[-0.04em] leading-none" style={{ color: s.accent }}>
+                  {s.v ?? 0}
+                </p>
               </div>
             ))}
-          </div>
+          </section>
         )}
 
-        {/* Main content grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
-          {/* Genre Chart */}
-          <div className="glass" style={{ borderRadius: 16, padding: 28 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', letterSpacing: '0.05em', marginBottom: 24, color: 'var(--text-primary)' }}>
-              🎭 SEUS GÊNEROS FAVORITOS
-            </h2>
+        {/* ── Analytics Bento ── */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+
+          {/* Genre Radar — 7 cols */}
+          <div className="md:col-span-7 card-cinema p-6 sm:p-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[rgba(201, 163, 117,0.1)] border border-[rgba(201, 163, 117, 0.25)] flex items-center justify-center">
+                  <BarChart3 className="w-4 h-4 text-[#C9A36F]" />
+                </div>
+                <div>
+                  <h2 className="type-label text-[13px] text-white font-bold uppercase tracking-[0.04em]">Radar de Gêneros</h2>
+                  <p className="font-mono text-[10px] text-[#5A5A5A]">Afinidade estatística</p>
+                </div>
+              </div>
+              <Badge variant="vinyl" className="text-[9px]">2D Radar</Badge>
+            </div>
+
             {profileData.top_genres.length > 0 ? (
               <GenreChart genres={profileData.top_genres} />
             ) : (
-              <p style={{ color: 'var(--text-muted)' }}>Avalie mais filmes para ver o gráfico</p>
+              <div className="text-center py-12">
+                <p className="font-mono text-[11px] text-[#5A5A5A] uppercase tracking-wider">
+                  Avalie mais filmes para ativar
+                </p>
+              </div>
             )}
           </div>
 
-          {/* Narrative Profile */}
-          <div className="glass" style={{ borderRadius: 16, padding: 28 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', letterSpacing: '0.05em', marginBottom: 24 }}>
-              🧠 PERFIL DE NARRATIVA
-            </h2>
-            {profileData.narrative_profile && (
-              <NarrativeChart profile={profileData.narrative_profile} />
-            )}
-            <div style={{ marginTop: 20, padding: '14px', background: 'rgba(124,58,237,0.08)', borderRadius: 10, border: '1px solid rgba(124,58,237,0.15)' }}>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          {/* Narrative DNA — 5 cols */}
+          <div className="md:col-span-5 card-cinema p-6 sm:p-8 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-xl bg-[rgba(201, 163, 117,0.1)] border border-[rgba(201, 163, 117, 0.25)] flex items-center justify-center">
+                  <Brain className="w-4 h-4 text-[#C9A36F]" />
+                </div>
+                <div>
+                  <h2 className="type-label text-[13px] text-white font-bold uppercase tracking-[0.04em]">DNA Narrativo</h2>
+                  <p className="font-mono text-[10px] text-[#5A5A5A]">Ritmo, tema, arco</p>
+                </div>
+              </div>
+
+              {profileData.narrative_profile && (
+                <NarrativeChart profile={profileData.narrative_profile} />
+              )}
+            </div>
+
+            {/* Analyst note in serif Italic */}
+            <div className="mt-6 pt-5 border-t border-[#3A3A40]">
+              <p className="type-quote text-sm text-[#8A8A90] leading-relaxed">
                 {profileData.narrative_profile?.emotional > 0.5
-                  ? '💜 Você prefere filmes com forte impacto emocional e personagens bem desenvolvidos.'
+                  ? '"Busca por dilemas éticos viscerais e forte carga psicológica de personagem."'
                   : profileData.narrative_profile?.complex > 0.5
-                  ? '🔭 Você aprecia roteiros complexos e narrativas não lineares.'
+                  ? '"Valoriza estruturas não-lineares, simbolismo abstrato e densidade temática."'
                   : profileData.narrative_profile?.action_driven > 0.5
-                  ? '⚡ Você curte um bom ritmo e muita ação nas telas.'
-                  : '🎨 Seu gosto é diversificado — você aprecia diferentes estilos narrativos.'}
+                  ? '"Prefere narrativas cinéticas, ritmo acelerado e impacto sensorial."'
+                  : '"Demonstra versatilidade estética e abertura ampla ao cinema mundial."'}
               </p>
             </div>
           </div>
 
-          {/* Style profile */}
-          <div className="glass" style={{ borderRadius: 16, padding: 28 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', letterSpacing: '0.05em', marginBottom: 24 }}>
-              🎨 ESTILO CINEMATOGRÁFICO
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {profileData.style_profile && Object.entries(profileData.style_profile)
-                .sort(([,a],[,b]) => Number(b)-Number(a))
-                .slice(0, 6)
-                .map(([key, val], i) => {
-                  const labels: Record<string, string> = { sci_fi: '🚀 Ficção Científica', drama: '🎭 Drama', action: '⚡ Ação', comedy: '😄 Comédia', thriller: '😰 Thriller', horror: '👻 Terror', animation: '✨ Animação', documentary: '📽️ Documentário' };
-                  const pct = Math.round(Number(val) * 100);
-                  return (
-                    <div key={key}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{labels[key] || key}</span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pct}%</span>
-                      </div>
-                      <div className="progress-bar">
-                        <div className="progress-fill" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
+          {/* Style Matrix — 12 cols */}
+          <div className="md:col-span-12 card-cinema p-6 sm:p-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[rgba(30, 77, 62, 0.1)] border border-[rgba(30, 77, 62, 0.25)] flex items-center justify-center">
+                  <Clapperboard className="w-4 h-4 text-[#1E4D3E]" />
+                </div>
+                <div>
+                  <h2 className="type-label text-[13px] text-white font-bold uppercase tracking-[0.04em]">Matriz de Estilo</h2>
+                  <p className="font-mono text-[10px] text-[#5A5A5A]">Intensidade por escola visual</p>
+                </div>
+              </div>
+              <Badge variant="velvet" className="text-[9px]">6-Axis</Badge>
             </div>
-          </div>
 
-          {/* CTA cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <Link href="/discover" style={{ textDecoration: 'none' }}>
-              <div className="glass" style={{ borderRadius: 16, padding: 28, cursor: 'pointer', transition: 'transform 0.3s ease, border-color 0.3s ease' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,45,120,0.4)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.borderColor = ''; }}>
-                <div style={{ fontSize: '2rem', marginBottom: 12 }}>💎</div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', letterSpacing: '0.05em', marginBottom: 8 }}>JOIAS ESCONDIDAS</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6 }}>Filmes incríveis e pouco conhecidos selecionados especialmente para o seu gosto.</p>
-                <p style={{ color: '#ff2d78', fontSize: '0.85rem', marginTop: 12, fontWeight: 600 }}>Ver recomendações →</p>
-              </div>
-            </Link>
-            <Link href="/explore" style={{ textDecoration: 'none' }}>
-              <div className="glass" style={{ borderRadius: 16, padding: 28, cursor: 'pointer', transition: 'transform 0.3s ease, border-color 0.3s ease' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,58,237,0.4)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.borderColor = ''; }}>
-                <div style={{ fontSize: '2rem', marginBottom: 12 }}>🕸️</div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', letterSpacing: '0.05em', marginBottom: 8 }}>EXPLORAR CONEXÕES</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6 }}>Visualize como filmes se conectam por gênero, diretor e estilo narrativo.</p>
-                <p style={{ color: '#7c3aed', fontSize: '0.85rem', marginTop: 12, fontWeight: 600 }}>Explorar grafo →</p>
-              </div>
-            </Link>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {profileData.style_profile &&
+                Object.entries(profileData.style_profile)
+                  .sort(([, a], [, b]) => Number(b) - Number(a))
+                  .slice(0, 6)
+                  .map(([key, val]) => {
+                    const pct   = Math.round(Number(val) * 100);
+                    const name  = styleLabels[key] || key;
+                    return (
+                      <div key={key} className="surface-raised rounded-[10px] p-4">
+                        <div className="flex justify-between items-center mb-2.5">
+                          <span className="type-label text-[12px] text-[#5A5A5A]">{name}</span>
+                          <span className="font-mono text-[11px] font-semibold text-[#C9A36F]">{pct}%</span>
+                        </div>
+                        <div className="h-1 bg-[#161618] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{
+                              width: `${pct}%`,
+                              background: `linear-gradient(90deg, #C9A36F, #E5C68D ${pct > 60 ? '100%' : '60%'})`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+            </div>
           </div>
         </div>
       </div>
-      <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
     </main>
   );
 }

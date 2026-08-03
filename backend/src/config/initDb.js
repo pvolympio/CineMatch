@@ -107,6 +107,36 @@ const initializeDatabase = async () => {
     console.log('✅ Table: recommendation_log');
 
     // =============================================
+    // USER LISTS TABLE - Custom movie lists
+    // =============================================
+    await query(`
+      CREATE TABLE IF NOT EXISTS user_lists (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        is_public BOOLEAN DEFAULT false,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `);
+    console.log('✅ Table: user_lists');
+
+    // =============================================
+    // LIST ITEMS TABLE - Movies in custom lists
+    // =============================================
+    await query(`
+      CREATE TABLE IF NOT EXISTS list_items (
+        id SERIAL PRIMARY KEY,
+        list_id INTEGER NOT NULL REFERENCES user_lists(id) ON DELETE CASCADE,
+        tmdb_movie_id INTEGER NOT NULL,
+        added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(list_id, tmdb_movie_id)
+      )
+    `);
+    console.log('✅ Table: list_items');
+
+    // =============================================
     // INDEXES for performance
     // =============================================
     await query(`CREATE INDEX IF NOT EXISTS idx_user_ratings_user_id ON user_ratings(user_id)`);

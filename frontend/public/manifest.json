@@ -1,0 +1,16 @@
+{
+  "name": "CineMatch",
+  "short_name": "CineMatch",
+  "description": "Descubra filmes escondidos e entenda seu perfil cinematográfico.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080810",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
